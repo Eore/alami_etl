@@ -7,93 +7,64 @@ import (
 	"strconv"
 )
 
-type DataInterface interface {
+type FileReader struct {
+	f *os.File
 }
 
-type Processor struct {
-	sourceFile string
-}
-
-func New(sourceFile string) *Processor {
-	return &Processor{
-		sourceFile: sourceFile,
-	}
-}
-
-func (p *Processor) Run(out string, opts ...Option) {
-	f, err := os.Create(out)
+func NewFileReader(file string) *FileReader {
+	f, err := os.Open(file)
 	if err != nil {
 		panic(err)
 	}
 
-	// write header to csv file
-	f.WriteString("id;Nama;Age;Balanced;No 2b Thread-No;No 3 Thread-No;Previous Balanced;Average Balanced;No 1 Thread-No;Free Transfer\n")
-
-	od := optionData{}
-
-	for _, opt := range opts {
-		opt(&od)
-	}
-
-	i := 1
-	for data := range p.streamReadData() {
-		if i <= od.countUser {
-			data.AddBalance(od.bonusBudget / float64(od.countUser))
-		}
-		data.CalculateAverage()
-		data.CalculateBenefit()
-		f.WriteString(data.ToRowCSVString())
-		i++
+	return &FileReader{
+		f: f,
 	}
 }
 
-type optionData struct {
-	bonusBudget float64
-	countUser   int
-}
+func (f *FileReader) Read(callback func(data Data)) {
+	reader := csv.NewReader(f.f)
+	reader.Comma = ';'
 
-type Option func(optData *optionData)
+	skipHeader := true
 
-func WithBonus(budget float64, countUser int) Option {
-	return func(optionData *optionData) {
-		optionData.bonusBudget = budget
-		optionData.countUser = countUser
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			return
+		}
+		if skipHeader {
+			skipHeader = false
+			continue
+		}
+		callback(mapData(row))
 	}
 }
 
-func (p *Processor) streamReadData() chan Data {
-	ch := make(chan Data)
-
-	go func(ch chan Data) {
-		defer close(ch)
-
-		file, err := os.Open(p.sourceFile)
-		defer file.Close()
-		if err != nil {
-			panic(err)
-		}
-
-		reader := csv.NewReader(file)
-		reader.Comma = ';'
-		skipHeader := true
-
-		for {
-			row, err := reader.Read()
-			if err == io.EOF {
-				break
-			}
-			if skipHeader {
-				skipHeader = false
-				continue
-			}
-			ch <- p.mapData(row)
-		}
-	}(ch)
-
-	return ch
+type FileWriter struct {
+	f *os.File
 }
 
-func (p *Processor) mapData(row []string) Data {
+func NewFileWriter(outFile string) *FileWriter {
+	f, err := os.Create(outFile)
+	if err != nil {
+		panic(err)
+	}
+
+	return &FileWriter{
+		f: f,
+	}
+}
+
+func (f *FileWriter) Write(record string) {
+	f.f.WriteString(record)
+}
+
+func (f *FileWriter) Close() {
+	f.f.Close()
+}
+
+func mapData(row []string) Data {
 	id, _ := strconv.Atoi(row[0])
 	name := row[1]
 	age, _ := strconv.Atoi(row[2])

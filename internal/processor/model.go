@@ -57,6 +57,6 @@ func (r Datas) BonusDisburst(budget float64, countPeople int) {
 	}
 }
 
-func (r Data) ToRowCSVString() string {
-	return fmt.Sprintf("%d;%s;%0.0f;-;-;%0.0f;%.2f;-;%d\n", r.ID, r.Name, r.Balanced, r.PreviousBalanced, r.AverageBalanced, r.FreeTransfer)
+func (r Data) ToRowCSVString(workerID int) string {
+	return fmt.Sprintf("%d;%s;%0.0f;%d;%d;%0.0f;%.2f;%d;%d\n", r.ID, r.Name, r.Balanced, workerID, workerID, r.PreviousBalanced, r.AverageBalanced, workerID, r.FreeTransfer)
 }
